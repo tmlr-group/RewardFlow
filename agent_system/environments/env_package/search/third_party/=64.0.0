@@ -1,0 +1,6 @@
+Looking in indexes: https://mirrors.cloud.aliyuncs.com/pypi/simple
+Collecting setuptools
+  Using cached https://mirrors.cloud.aliyuncs.com/pypi/packages/a3/dc/17031897dae0efacfea57dfd3a82fdd2a2aeb58e0ff71b77b87e44edc772/setuptools-80.9.0-py3-none-any.whl (1.2 MB)
+Requirement already satisfied: wheel in /mnt/data/fengxiao/miniforge3/lib/python3.12/site-packages (0.45.1)
+Installing collected packages: setuptools
+Successfully installed setuptools-80.9.0
