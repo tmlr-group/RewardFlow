@@ -125,7 +125,7 @@ def compute_step_discounted_returns(batch: DataProto, gamma: float):
     all_returns = np.zeros_like(rewards)
     for i, uid in enumerate(traj_uids):
         traj_indices = np.where(traj_uids == uid)[0]
-        idx_in_traj = np.where(traj_indices == i)[0][0]  # Find position of i in its trajectory
+        idx_in_traj = np.where(traj_indices == i)[0][0]
         all_returns[i] = returns_by_traj[uid][idx_in_traj]
     
     all_returns = torch.tensor(all_returns, dtype=torch.float32, device=batch.batch['input_ids'].device)

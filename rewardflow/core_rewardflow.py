@@ -18,20 +18,14 @@ Core functions to implement RewardFlow algorithms.
 The function implemented in this file should be used by trainer with different distributed strategies to implement RewardFlow
 """
 
+import uuid
+from collections import Counter, defaultdict
+from difflib import SequenceMatcher
+
 import numpy as np
 import torch
-from collections import defaultdict, Counter
 from verl import DataProto
-import uuid
-import networkx as nx
-from collections import deque
-from difflib import SequenceMatcher
-from typing import Sequence, List, Dict, Any
-import re
 
-# ---------------------------------------------------------- #
-# ------------ General Functions of RewardFlow ------------- #
-# ---------------------------------------------------------- #
 def to_hashable(x):
     if isinstance(x, (int, float, str, bool)):
         return x
@@ -46,11 +40,11 @@ def to_hashable(x):
     else:
         raise TypeError(f"Unsupported type: {type(x)}")
 
-def summarize_group_size(group_size: list):
+def summarize_group_size(group_size: list[int]):
     """
     Summarize the dynamics of step-level group.
     Args:
-        group_size : List[int]
+        group_size: list[int]
     """
     counts = Counter(group_size)
     total = sum(counts.values())
@@ -87,15 +81,10 @@ def are_similar(a: str, b: str, threshold: float = 0.95) -> bool:
     return SequenceMatcher(None, a, b).ratio() >= threshold
 
 def compute_step_returns(batch: DataProto):
-    # 直接返回原始rewards，保持数据结构正确
     rewards = batch.non_tensor_batch['step_rewards'].astype(np.float32)
     all_returns = torch.tensor(rewards, dtype=torch.float32, device=batch.batch['input_ids'].device)
     
     return all_returns
-
-# ---------------------------------------------------------- #
-# -------------- Core Functions of RewardFlow -------------- #
-# ---------------------------------------------------------- #
 
 def compute_rewardflow_outcome_advantage(token_level_rewards: torch.Tensor,
                                    step_rewards: torch.Tensor,
@@ -125,8 +114,6 @@ def compute_rewardflow_outcome_advantage(token_level_rewards: torch.Tensor,
     step_advantages = step_norm_reward(step_rewards, response_mask, step_group_uids, epsilon, remove_std)
 
     scores = episode_advantages + step_advantage_w * step_advantages
-    # scores = step_advantages
-    print("solely use step-level advantage")
     return scores, scores
 
 
@@ -211,42 +198,33 @@ def build_step_group(anchor_obs: np.array, index: np.array, summarize: bool = Fa
     index : np.array
         Array of episode_group_uid
     summarize : bool
-        Whether to summarize the group sizes (default: True)
+        Whether to summarize the group sizes (default: False)
     
     Returns:
     --------
     np.array
         Array of step_group_uid values corresponding to the original anchor_obs array
     """
-    # Initialize the result array with placeholder values
     step_group_uids = np.empty(len(anchor_obs), dtype=object)
     
-    # Get unique indices
     unique_indices = np.unique(index)
 
     group_size = []
-    # Process each unique index
     for idx in unique_indices:
-        # Get all observations for this index using np.where
         indices = np.where(index == idx)[0]
         obs_group = anchor_obs[indices]
         
-        # Create clusters for identical observations
         clusters = defaultdict(list)
         for i, obs in enumerate(obs_group):
-            clusters[to_hashable(obs)].append(indices[i])  # Store the original index position
+            clusters[to_hashable(obs)].append(indices[i])
         
-        # Assign unique step_group_uid to each cluster
         for obs, original_indices in clusters.items():
-            # Generate a UUID for this cluster
             uid = str(uuid.uuid4())
             
-            # Assign the same step_group_uid to all elements in this cluster
             group_size.append(len(original_indices))
             for original_idx in original_indices:
                 step_group_uids[original_idx] = uid
 
-        # Validate that all elements have been assigned a uid
     if None in step_group_uids or np.any(step_group_uids == None):
         missing_indices = np.where(step_group_uids == None)[0]
         raise ValueError(f"Failed to assign UIDs to all observations. Missing at indices: {missing_indices}")
@@ -280,12 +258,6 @@ def step_norm_reward(step_rewards: torch.Tensor,
     response_length = response_mask.shape[-1]
     scores = step_rewards.clone()
 
-    # import pickle
-    # with open("step_norm_scores.pkl", "wb") as f:
-    #     pickle.dump(scores.cpu().numpy(), f)
-
-    # raise Exception("rewardflow test")
-
     id2score = defaultdict(list)
     id2mean = {}
     id2std = {}
@@ -316,15 +288,7 @@ def step_norm_reward(step_rewards: torch.Tensor,
     return step_advantages
 
 def general_clean_trajectory(trajectory, idx_to_state):
-    print("general_clean_trajectory: no denoise")
     return trajectory
-
-# ---------------------------------------------------------- #
-# ------------ Reward Propagation Functions --------------- #
-# ---------------------------------------------------------- #
-
-
-
 
 def apply_rewardflow_propagation(total_batch_list, 
                                  config,
@@ -338,21 +302,18 @@ def apply_rewardflow_propagation(total_batch_list,
         config: Configuration object with algorithm settings
         tokenizer: Tokenizer for decoding responses
         envs: Environment object with projection function
-        gamma: Discount factor
         
     Returns:
         total_batch_list: Updated batch list with propagated rewards
     """
-    # Import functions from their respective modules
     from agent_system.multi_turn_rollout.utils import (
         extract_unique_states, 
         build_trajectory, 
         get_personalization,
         unique_trajectory
     )
-    from agent_system.multi_turn_rollout.propogation import (
-        propagate_reward_decay,
-        propagate_reward_pagerank
+    from rewardflow.propagation import (
+        propagate_reward_decay
     )
 
 
@@ -382,41 +343,20 @@ def apply_rewardflow_propagation(total_batch_list,
     idx_to_state_list = []
     state_to_idx_list = []
     flat_unique_trajectory_list = []
-    # raise ValueError("stop here")
     for (start_idx, end_idx) in first_last_indices:
         selected_state_list = raw_state_list[start_idx:end_idx]
         selected_action_list = raw_action_list[start_idx:end_idx]
         _, state_to_idx, idx_to_state = extract_unique_states(selected_state_list)
         trajectory = build_trajectory(selected_state_list, selected_action_list, state_to_idx)
-        # cleaned_trajectory = envs.clean_trajectory(trajectory, idx_to_state)
         cleaned_trajectory = envs.clean_trajectory(trajectory, idx_to_state)
-        # ablation: no valid action clean
-        # cleaned_trajectory = general_clean_trajectory(trajectory, idx_to_state)
         flat_unique_trajectory = unique_trajectory(cleaned_trajectory)
         flat_unique_trajectory_list.append(flat_unique_trajectory)
-        # Apply reward propagation based on config
-        if config.algorithm.rewardflow.propagate == "decay":
-            G_propagate, value_dict = propagate_reward_decay(
-                flat_unique_trajectory, 
-                gamma=config.algorithm.gamma, 
-                max_iter=1000
-            )
-        elif config.algorithm.rewardflow.propagate in ["pr", "ppr"]:
-            if config.algorithm.rewardflow.propagate == "pr":
-                personalization = None
-            elif config.algorithm.rewardflow.propagate == "ppr":
-                personalization = get_personalization(flat_unique_trajectory)
-                if all(value == 0 for value in personalization.values()):
-                    personalization = None
-            G_propagate, value_dict = propagate_reward_pagerank(
-                flat_unique_trajectory, 
-                alpha=config.algorithm.rewardflow.alpha, 
-                personalization=personalization, 
-                max_iter=1000
-            )
-            
-        else:
-            raise ValueError(f"Unknown propagate method: {config.algorithm.rewardflow.propagate}")
+
+        G_propagate, value_dict = propagate_reward_decay(
+            flat_unique_trajectory, 
+            gamma=config.algorithm.gamma, 
+            max_iter=1000
+        )
         
         for idx in range(len(idx_to_state)):
             if idx not in value_dict:
@@ -425,7 +365,6 @@ def apply_rewardflow_propagation(total_batch_list,
         value_dict_list.append(value_dict)
         idx_to_state_list.append(idx_to_state)
         state_to_idx_list.append(state_to_idx)
-    # Update rewards in trajectories
     new_reward_list = []
     new_reward_abs_list = []
     for i in range(len(total_batch_list)):
@@ -450,27 +389,18 @@ def apply_rewardflow_propagation(total_batch_list,
         for j in range(len(total_batch_list[i])-1):
             if not total_batch_list[i][j]['active_masks']:
                 break
-            # Assign to_state reward to the action
             cur_state = to_hashable(total_batch_list[i][j+1]['anchor_obs'])
             state_idx = state_to_idx_list[batch_idx][cur_state]
             cur_reward = value_dict_list[batch_idx][state_idx]
             
-
-            # # smooth the reward
-            # if cur_reward == 0.0:
-            #     cur_reward = prev_reward
-
             new_reward.append(cur_reward - prev_reward)
-
             new_reward_abs.append(cur_reward)
             prev_reward = cur_reward
         new_reward_abs_list.append(new_reward_abs)
         new_reward_list.append(new_reward)
 
-    # Update the original batch with new rewards
     for i in range(len(total_batch_list)):
         for j in range(len(total_batch_list[i])):
-            # 为防止报错，把后续失效的reward补齐
             if j < len(new_reward_list[i]):
                 total_batch_list[i][j]['step_rewards'] = new_reward_list[i][j]
                 total_batch_list[i][j]['step_rewards_abs'] = new_reward_abs_list[i][j]
@@ -478,6 +408,5 @@ def apply_rewardflow_propagation(total_batch_list,
                 total_batch_list[i][j]['step_rewards'] = total_batch_list[i][j]['rewards'] 
                 total_batch_list[i][j]['step_rewards_abs'] = total_batch_list[i][j]['rewards'] 
     print("length of total_batch_list: ", len(total_batch_list))
-    # return total_batch_list, flat_unique_trajectory_list, value_dict_list, idx_to_state_list, state_to_idx_list
     return total_batch_list
 

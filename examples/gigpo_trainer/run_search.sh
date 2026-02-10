@@ -2,8 +2,8 @@ set -x
 
 ENGINE=${1:-vllm}
 
-train_data_size=64
-val_data_size=128
+train_data_size=256
+val_data_size=512
 group_size=5
 
 # GiGPO config
@@ -25,7 +25,7 @@ python3 -m verl.trainer.main_ppo \
     data.filter_overlong_prompts=True \
     data.truncation='left' \
     data.return_raw_chat=True \
-    actor_rollout_ref.model.path=/mnt/data1/data/models/Qwen2.5-3B-Instruct \
+    actor_rollout_ref.model.path=Qwen/Qwen2.5-3B-Instruct \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.actor.optim.lr_warmup_steps_ratio=0.1 \
     actor_rollout_ref.model.use_remove_padding=True \
@@ -67,14 +67,8 @@ python3 -m verl.trainer.main_ppo \
     trainer.experiment_name='gigpo_sim0.9_qwen2.5_3b_instruct' \
     trainer.n_gpus_per_node=2 \
     trainer.nnodes=1 \
-    trainer.total_training_steps=202 \
-    trainer.save_freq=10 \
+    trainer.total_training_steps=200 \
+    trainer.save_freq=50 \
     trainer.test_freq=200 \
     trainer.total_epochs=1 \
-    trainer.val_before_train=True $@
-
-
-
-wait
-
-python matrix.py
+    trainer.val_before_train=False $@

@@ -9,8 +9,8 @@ group_size=8
 current_port=7000
 
 # Activate conda environment
-source ~/miniconda3/etc/profile.d/conda.sh
-conda activate appworld
+# source ~/miniconda3/etc/profile.d/conda.sh
+# conda activate appworld
 
 # Stop existing appworld services
 ps aux | grep "appworld serve" | grep -v grep | awk '{print $2}' | xargs -r kill -9

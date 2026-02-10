@@ -28,7 +28,6 @@ from typing import List, Dict
 from verl.protocol import pad_dataproto_to_divisor, unpad_dataproto
 from rewardflow.core_rewardflow import apply_rewardflow_propagation
 import time
-import os
 
 class TrajectoryCollector:
     def __init__(self, config, tokenizer: PreTrainedTokenizer, processor=None):
@@ -521,13 +520,6 @@ class TrajectoryCollector:
         assert len(total_batch_list) == len(total_traj_uid)
         assert len(total_batch_list) == len(totoal_tool_callings)
 
-        # import pickle
-        # save_dir = f"./tmp/{self.config.env.env_name}/raw_batch_before_propogation_v2.pkl"
-        # os.makedirs(os.path.dirname(save_dir), exist_ok=True)
-        # with open(save_dir, "wb") as f:
-        #     pickle.dump(total_batch_list, f)
-        # print(f"save total_batch_list to {save_dir}")
-        # raise Exception("rewardflow test")
 
         rewardflow_start_time = time.time()
         if self.config.algorithm.adv_estimator == "rewardflow" and is_train:
@@ -535,12 +527,6 @@ class TrajectoryCollector:
         rewardflow_end_time = time.time()
         print(f"rewardflow time: {rewardflow_end_time - rewardflow_start_time} seconds")
         rewardflow_time = rewardflow_end_time - rewardflow_start_time
-
-        # with open(f"./tmp/{self.config.env.env_name}/raw_batch_after_propogation_v2.pkl", "wb") as f:
-        #     pickle.dump(total_batch_list, f)
-
-        # raise Exception("rewardflow test")
-        
 
         # Create trajectory data
         gen_batch_output: DataProto = self.gather_rollout_data(

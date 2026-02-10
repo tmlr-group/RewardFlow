@@ -592,7 +592,6 @@ class RayPPOTrainer:
         """
         Creates the train and validation dataloaders.
         """
-        # TODO: we have to make sure the batch size is divisible by the dp size
         from verl.trainer.main_ppo import create_rl_dataset, create_rl_sampler
 
         if train_dataset is None:
@@ -792,12 +791,6 @@ class RayPPOTrainer:
                 data_source_lst.append(test_batch.non_tensor_batch.get('data_source', ['unknown'] * reward_tensor.shape[0]))
                 tool_calling_list.append(test_output_gen_batch.non_tensor_batch['tool_callings'])
                 traj_uid_list.append(test_output_gen_batch.non_tensor_batch['traj_uid'])
-                # 记录目前的准确率
-                # success rate
-                print(f"success_rate_dict: {success_rate_dict}")
-                if 'success_rate' in success_rate_dict:
-                    tmp_success_rate = {k: np.mean(v) for k, v in success_rate_dict.items()}
-                    print(f"average success_rate: {tmp_success_rate}")
                 for k in test_batch.non_tensor_batch.keys():
                     if 'success_rate' in k:
                         if k not in success_rate_dict:
@@ -811,9 +804,6 @@ class RayPPOTrainer:
             except Exception as e:
                 import traceback
                 print(f"Error in validation entry {entry}: {e}")
-                if 'success_rate' in success_rate_dict:
-                    tmp_success_rate = {k: np.mean(v) for k, v in success_rate_dict.items()}
-                    print(f"average success_rate: {tmp_success_rate}")
                 traceback.print_exc()
                 continue
 
@@ -1106,12 +1096,6 @@ class RayPPOTrainer:
                 with _timer("step", timing_raw):
                     # generate a batch
                     with _timer("gen", timing_raw):
-                        # if not self.async_rollout_mode:
-                        #     gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
-                        # else:
-                        #     self.async_rollout_manager.wake_up()
-                        #     gen_batch_output = self.async_rollout_manager.generate_sequences(gen_batch)
-                        #     self.async_rollout_manager.sleep()
 
                         ################ agent-environment loop ###############
                         gen_batch_output, rewardflow_time = self.traj_collector.multi_turn_loop(
@@ -1156,13 +1140,6 @@ class RayPPOTrainer:
                             batch=batch
                         )
                         batch.batch['step_rewards'] = step_rewards_tensor
-
-                        # out_dir = "/mnt/workspace/fengxiao/verl-agent/tmp/rewardflow"
-                        # os.makedirs(out_dir, exist_ok=True)
-
-                        # pkl_path = os.path.join(out_dir, f"total_batch_list_after_decay.pkl")
-                        # with open(pkl_path, "wb") as f:
-                        #     pickle.dump(batch, f)
                     
                     batch = adjust_batch(self.config, batch)
 

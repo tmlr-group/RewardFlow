@@ -3,8 +3,24 @@ import numpy as np
 import time
 import logging
 from datetime import datetime
+from types import SimpleNamespace
 from agent_system.environments.env_manager import *
 from openai import OpenAI
+import json
+from collections import defaultdict
+
+def make_env_config(env_name="alfworld/AlfredTWEnv", seed=0, max_steps=50, history_length=2):
+    """Create a config object matching the structure expected by AlfWorldEnvironmentManager."""
+    config = SimpleNamespace(
+        env=SimpleNamespace(
+            env_name=env_name,
+            seed=seed,
+            max_steps=max_steps,
+            history_length=history_length,
+        )
+    )
+    return config
+
 
 def build_env(env_name, env_num=1):
     group_n = 1
@@ -18,7 +34,10 @@ def build_env(env_name, env_num=1):
         }
         resources_per_worker = {"num_cpus": 0.05, "num_gpus": 0.0}
         envs = build_alfworld_envs(alf_config_path, seed=1, env_num=env_num, group_n=group_n, is_train=False, env_kwargs=env_kwargs, resources_per_worker=resources_per_worker)
-        env_manager = AlfWorldEnvironmentManager(envs, alfworld_projection, 'alfworld/AlfredThorEnv')
+        
+        # Create proper config object instead of string
+        config = make_env_config(env_name="alfworld/AlfredTWEnv", history_length=2)
+        env_manager = AlfWorldEnvironmentManager(envs, alfworld_projection, config)
     else:
         raise ValueError(f"Unsupported environment name: {env_name}")
     
@@ -28,7 +47,8 @@ class Agent:
     def __init__(self, model_name="gpt-4o"):
         self.model_name = model_name
         self.client = OpenAI(
-            api_key=os.environ['OPENAI_API_KEY'],
+            api_key="123456",
+            base_url="http://localhost:8000/v1",
         )
         
     def get_action_from_gpt(self, obs):
@@ -57,13 +77,13 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(message)s",
-        handlers=[logging.FileHandler(log_fp, encoding="utf-8"), logging.StreamHandler()],
+        handlers=[logging.StreamHandler()],
     )
 
     # -------- Parameters ----------
-    max_steps = 50
-    env_num = 200
-    test_times = 3
+    max_steps = 20
+    env_num = 1
+    test_times = 1
     env_name = "alfworld" 
 
     # Keywords for 6 subtasks
@@ -78,7 +98,7 @@ if __name__ == "__main__":
 
     # -------- Environment and agent setup ----------
     env_manager = build_env(env_name, env_num)
-    agent = Agent()
+    agent = Agent(model_name="/mnt/data1/data/models/Qwen2.5-32B-Instruct")
 
     # Accumulated statistics
     overall_success_rates = []         # Overall success per round
@@ -97,7 +117,8 @@ if __name__ == "__main__":
         overall_success_this_round = np.zeros(env_num, dtype=bool)
         task_success_cnt = defaultdict(int)
         task_total_cnt = defaultdict(int)
-
+        record = [[] for _ in range(env_num)]
+        success_record = [False] * env_num
         for step_idx in range(max_steps):
             logging.info(f"Step {step_idx}; Dones ({np.array(env_dones).sum().item()}/{env_num}); SR {overall_success_this_round.mean().item()}")
 
@@ -108,10 +129,13 @@ if __name__ == "__main__":
                     actions.append("None")
                 else:
                     actions.append(agent.get_action_from_gpt(obs["text"][i]))
-
+                    record[i].append({"obs": obs["text"][i], "action": actions[i]})
             # --- Environment stepping ---
             obs, rewards, dones, infos = env_manager.step(actions)
 
+            for i in range(env_num):
+                if success_record[i] is False and dones[i]:
+                    success_record[i] = True
             # --- Determine endings and successes ---
             for i in range(env_num):
                 if env_dones[i]:
@@ -142,6 +166,14 @@ if __name__ == "__main__":
                 logging.info("All environments finished early!")
                 break
 
+        full_record = [
+            {
+                "success": success_record[i],
+                "record": record[i],
+            } for i in range(env_num)
+        ]
+        with open(f"logs/alfworld/record_test_{test_idx}.json", "w") as f:
+            json.dump(full_record, f, indent=4)
         # -------- Single round results --------
         round_success_rate = overall_success_this_round.mean()
         overall_success_rates.append(round_success_rate)

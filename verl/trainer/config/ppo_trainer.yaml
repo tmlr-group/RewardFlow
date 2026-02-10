@@ -251,10 +251,10 @@ algorithm:
     mode: "mean_norm" # "mean_norm" or "mean_std_norm"
     enable_similarity: False # whether to use similarity-based anchor state grouping in GiGPO (supported for text-only tasks)
     similarity_thresh: 0.95 # similarity threshold for GiGPO (0.0, 1.0)
-  rewardflow:
-    difference: True # True for rewardflow with difference reward
-    propagate: decay # decay or pr
-    alpha: 0.35
+  # rewardflow:
+  #   difference: True # True for rewardflow with difference reward
+  #   propagate: decay # decay or pr
+  #   alpha: 0.35
   filter_groups: # DAPO from https://arxiv.org/abs/2503.14476
     enable: False
     max_num_gen_batches: 10
@@ -295,7 +295,7 @@ ray_init:
 env:
   env_name: alfworld/AlfredTWEnv
   seed: 0
-  max_steps: 50
+  max_steps: 25
   history_length: 2
   resources_per_worker: # resources for each env worker
     num_cpus: 0.1
