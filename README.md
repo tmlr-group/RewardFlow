@@ -208,7 +208,7 @@ If you find `RewardFlow` useful in your research or applications, please cite ou
 
 ## 🤝 Contributing
 
-We welcome contributions to RewardFlowh! Please feel free to:
+We welcome contributions to RewardFlow! Please feel free to:
 
 - Report bugs and issues
 - Suggest new features or improvements
