@@ -358,6 +358,11 @@ class TrajectoryCollector:
             
             next_obs, rewards, dones, infos = envs.step(text_actions)
 
+            # Get inventory state for alfworld
+            if self.config.env.env_name == "alfworld/AlfredTWEnv":
+                inventory_obs, _, _, _ = envs.step(["inventory" for _ in range(batch_size)])
+                batch.non_tensor_batch["inventory_state"] = inventory_obs['anchor']
+
             
             if len(rewards.shape) == 2:
                 rewards = rewards.squeeze(1)
