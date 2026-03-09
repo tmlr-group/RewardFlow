@@ -19,6 +19,7 @@ import torch
 import numpy as np
 from functools import partial
 import os
+import re
 from agent_system.environments.prompts import *
 from agent_system.environments.base import EnvironmentManagerBase, to_numpy
 from agent_system.memory import SimpleMemory, SearchMemory
@@ -327,7 +328,7 @@ class AlfWorldEnvironmentManager(EnvironmentManagerBase):
         if all_responses:
             decoded_responses = tokenizer.batch_decode(all_responses)
             # 批量处理projection
-            actions, valids = self.projection_f(decoded_responses)
+            actions, valids = self.projection_f(decoded_responses, self.envs.get_admissible_commands)
         else:
             decoded_responses = []
             actions = []
