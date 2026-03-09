@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from typing import List, Tuple, Dict, Union, Any
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import torch
 import numpy as np
 from functools import partial
@@ -826,7 +826,7 @@ class WebshopEnvironmentManager(EnvironmentManagerBase):
             action_seq = []
 
             # 使用ordered dict以固定顺序存储attributes
-            attributes_manager = collections.OrderedDict()
+            attributes_manager = OrderedDict()
             for j in range(1, len(traj)):
                 # If current step's active_masks is False, trajectory ends
                 if not traj[j]['active_masks']:
