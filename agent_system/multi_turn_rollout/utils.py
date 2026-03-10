@@ -240,13 +240,11 @@ def extract_unique_states(state_list, use_similarity=False, similarity_threshold
                 all_states.append(step['state'])
 
         for state_arr in all_states:
-            # 遍历所有的state，如果clusters为空 则新建一个列表并直接加入到clusters中
             if not clusters:
                 clusters.append([state_arr])
                 continue
 
             found_cluster = False
-            # 如果clusters不为空，但存在有cluster中存在有state与当前state的相似度大于similarity_threshold，则将当前state加入到该cluster中
             for cluster in clusters:
                 # Check similarity with the representative of the cluster (the first element)
                 if are_similar(state_arr, cluster[0], similarity_threshold):
@@ -254,25 +252,21 @@ def extract_unique_states(state_list, use_similarity=False, similarity_threshold
                     found_cluster = True
                     break
             
-            # 如果clusters不为空，且不存在有cluster中存在有state与当前state的相似度大于similarity_threshold，则新建一个cluster并将当前state加入到该cluster中
+            # If not found cluster, create a new one
             if not found_cluster:
                 clusters.append([state_arr])
         
         
-        # 得到的cluster 应该长这样 [[state1, state2, state3], [state4, state5], [state6]]
-        # 每个cluster中的state 都是相似的
-        # 现在我们需要得到unique_state_list, state_to_idx, idx_to_state
-        # 其中unique_state_list 中的每个元素就是一个cluster
         unique_state_list = clusters
         
-        # state_to_idx 是为每一个cluster分配一个idx，并在字典中将cluster和idx进行映射
+        # Map states to cluster indices
         state_to_idx = {}
         for i, cluster in enumerate(clusters):
             for state in cluster:
                 state_hash = to_hashable(state)
                 state_to_idx[state_hash] = i
 
-        # idx_to_state 是state_to_idx的反向映射
+        # Reverse mapping from index to cluster
         idx_to_state = {i: cluster for i, cluster in enumerate(clusters)}
         
         return unique_state_list, state_to_idx, idx_to_state
@@ -280,8 +274,7 @@ def extract_unique_states(state_list, use_similarity=False, similarity_threshold
 
 def build_trajectory(state_list, action_list, state_to_idx):
     """
-    生成轨迹（三元组列表）: (src_idx, action_label, dst_idx, src_reward, dst_reward)
-    这里的 state 已经是 ndarray，使用 .tobytes() 作为 key
+    Generate trajectory (list of triplets): (src_idx, action_label, dst_idx, src_reward, dst_reward)
     """
     trajectory = []
     for i in range(len(state_list)):
@@ -289,7 +282,6 @@ def build_trajectory(state_list, action_list, state_to_idx):
         for j in range(len(state_list[i]) - 1):
             src_state = state_list[i][j]['state']
             dst_state = state_list[i][j + 1]['state']
-            # state_to_idx 的 key 是 state.tobytes()
             src_idx = state_to_idx[to_hashable(src_state)]
             dst_idx = state_to_idx[to_hashable(dst_state)]
             action_label = action_list[i][j]
