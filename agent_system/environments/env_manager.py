@@ -295,7 +295,6 @@ class AlfWorldEnvironmentManager(EnvironmentManagerBase):
 
     
     def state_preprocess(self, total_batch_list, tokenizer):
-        # 将正则表达式编译移到类级别，避免重复编译
         if not hasattr(self, '_compiled_patterns'):
             self._compiled_patterns = {
                 'cool': re.compile(r"You cool the (.*?) using"),
@@ -308,11 +307,9 @@ class AlfWorldEnvironmentManager(EnvironmentManagerBase):
         patterns = self._compiled_patterns
         success_state = "You Won!"
         
-        # 预编译字符串模板
         state_template = "{} {}"
         object_state_template = "{} ({}ed)"
         
-        # 批量解码所有responses，避免重复调用tokenizer.decode
         all_responses = []
         response_positions = []
         for i, traj in enumerate(total_batch_list):
@@ -324,17 +321,14 @@ class AlfWorldEnvironmentManager(EnvironmentManagerBase):
                 all_responses.append(traj[j-1]['responses'])
                 response_positions.append((i, j-1, False))
         
-        # 批量解码
         if all_responses:
             decoded_responses = tokenizer.batch_decode(all_responses)
-            # 批量处理projection
             actions, valids = self.projection_f(decoded_responses, self.envs.get_admissible_commands)
         else:
             decoded_responses = []
             actions = []
             valids = []
         
-        # 创建响应映射
         response_map = {}
         for idx, (i, j, is_final) in enumerate(response_positions):
             response_map[(i, j, is_final)] = str(actions[idx]) if idx < len(actions) else ""
@@ -352,7 +346,6 @@ class AlfWorldEnvironmentManager(EnvironmentManagerBase):
                 "clean": set(),
             }
             
-            # 预计算初始状态
             initial_state = state_template.format(traj[0]['anchor_obs'], traj[0]['inventory_state'])
             state_seq = [{
                 "state": initial_state,
@@ -375,12 +368,10 @@ class AlfWorldEnvironmentManager(EnvironmentManagerBase):
                     action_seq.append(response_map.get((i, j-1, True), ""))
                     break
                 
-                # 优化对象状态更新：使用单一循环
                 anchor_obs = traj[j]['anchor_obs']
                 current_obj = None
                 current_action = None
                 
-                # 检查所有模式，找到匹配的
                 for action, pattern in [('cool', patterns['cool']), ('heat', patterns['heat']), ('clean', patterns['clean'])]:
                     match = pattern.search(anchor_obs)
                     if match:
@@ -388,38 +379,38 @@ class AlfWorldEnvironmentManager(EnvironmentManagerBase):
                         current_action = action
                         break
                 
-                # 更新对象状态
+                # update object state
                 if current_obj and current_action:
-                    # 从其他状态中移除
+                    # remove from other states
                     for other_action in object_state_dict:
                         if other_action != current_action:
                             object_state_dict[other_action].discard(current_obj)
                     object_state_dict[current_action].add(current_obj)
                 
-                # 处理inventory状态
+                # process inventory state
                 inventory_state = traj[j]['inventory_state']
                 
-                # 优化字符串处理：只在需要时进行替换
+                # optimize string processing: only replace when needed
                 if current_obj and current_action:
-                    # 移除"a "前缀
+                    # remove "a " prefix
                     inventory_state_no_a = patterns['a_prefix'].sub(r"\1", inventory_state)
                     objects = patterns['object'].findall(inventory_state_no_a)
                     
                     if objects:
-                        # 使用字典查找优化状态匹配
+                        # use dictionary to optimize state matching
                         obj_state_map = {}
                         for action_key, obj_set in object_state_dict.items():
                             for obj in obj_set:
                                 obj_state_map[obj] = action_key
                         
-                        # 构建替换映射
+                        # build replace mapping
                         replace_map = {}
                         for obj in objects:
                             if obj in obj_state_map:
                                 state = obj_state_map[obj]
                                 replace_map[obj] = object_state_template.format(obj, state)
                         
-                        # 执行替换
+                        # execute replacement
                         if replace_map:
                             def obj_replace(match):
                                 return replace_map.get(match.group(0), match.group(0))
@@ -436,7 +427,7 @@ class AlfWorldEnvironmentManager(EnvironmentManagerBase):
                 total_batch_list[i][j]['anchor_obs'] = current_state
                 action_seq.append(response_map.get((i, j-1, False), ""))
             
-            # 将set转为list，保证数据结构一致性
+            # convert set to list, ensure data structure consistency
             total_state_list.append({k: list(v) for k, v in object_state_dict.items()})
             raw_state_list.append(state_seq)
             raw_action_list.append(action_seq)
@@ -447,7 +438,7 @@ class AlfWorldEnvironmentManager(EnvironmentManagerBase):
         # 1. inventory
         # 2. look
         # 3. examine
-        # 4. 无效动作 (下一个状态是Nothing happens)
+        # 4. invalid action (next state is Nothing happens)
         cleaned_trajectory = []
         for i in range(len(trajectory)):
             cleaned_trajectory.append([])
@@ -457,10 +448,10 @@ class AlfWorldEnvironmentManager(EnvironmentManagerBase):
                 from_state, action, to_state, from_reward, to_reward = trajectory[i][j]
                 if action in ["inventory", "look"] or "examine" in action or "Nothing happens" in idx_to_state[to_state] or from_state == to_state:
                     cur_from_state = from_state
-                    # 向下寻找下一个有效的action
+                    # find next valid action
                     while j < len(trajectory[i]):
                         from_state, action, to_state, from_reward, to_reward = trajectory[i][j]
-                        # 注意这里要判断是当前定位的from_state (cur_from_state)和to_state是否相同
+                        # check if current from_state (cur_from_state) and to_state are the same
                         if action in ["inventory", "look"] or "examine" in action or "Nothing happens" in idx_to_state[to_state] or cur_from_state == to_state:
                             j += 1
                         else:
@@ -812,7 +803,7 @@ class WebshopEnvironmentManager(EnvironmentManagerBase):
                 return match.group(1)
             return action
 
-        # attributes_manager需要固定顺序，确保不出现冗余状态
+        # attributes_manager needs to be fixed order, ensure no redundant state
         raw_state_list = []
         raw_action_list = []
 
@@ -825,7 +816,7 @@ class WebshopEnvironmentManager(EnvironmentManagerBase):
             }]
             action_seq = []
 
-            # 使用ordered dict以固定顺序存储attributes
+            # use ordered dict to store attributes in fixed order
             attributes_manager = OrderedDict()
             for j in range(1, len(traj)):
                 # If current step's active_masks is False, trajectory ends
@@ -848,22 +839,22 @@ class WebshopEnvironmentManager(EnvironmentManagerBase):
                 info = traj[j-1]['infos']
                 action_space = traj[j-1]['infos']["available_actions"]['clickables']
 
-                # 修改goods_attributes_manager
+                # modify goods_attributes_manager
                 if info["available_actions"]['has_search_bar']:
-                    # 搜索页 & 完成页： 清空attributes_manager
+                    # search page & completion page: clear attributes_manager
                     attributes_manager.clear()
                 elif "buy now" not in action_space:
-                    # 召回页：清空attributes_manager
+                    # recall page: clear attributes_manager
                     attributes_manager.clear()
                 elif "buy now" in action_space:
-                    # 商详页：为商品添加选择的属性
+                    # product detail page: add selected attributes to goods_attributes_manager
                     attributes_list = [a for a in action_space if a not in ['back to search', '< prev', 'description', 'features', 'reviews', 'buy now']]
                     if extracted_action in attributes_list:
                         if extracted_action not in attributes_manager:
                             attributes_manager[extracted_action] = None
 
                 if len(attributes_manager) > 0:
-                    # 固定顺序，避免冗余状态
+                    # fixed order, avoid redundant state
                     clicked_description = f" clicked attributes: [{', '.join(attributes_manager.keys())}]"
                 else:
                     clicked_description = ""
