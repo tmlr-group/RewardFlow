@@ -178,7 +178,7 @@ bash examples/gigpo_trainer/run_search.sh # Search
 bash examples/gigpo_trainer/run_sokoban.sh # Sokoban
 ```
 ### 3. GRPO
-GRPO is a critic-free algorithm that estimates relative advantages based on a group of full episode trajectories.
+<!-- GRPO is a critic-free algorithm that estimates relative advantages based on a group of full episode trajectories. -->
 ```bash
 bash examples/grpo_trainer/run_alfworld.sh # ALFWorld
 ```
@@ -194,8 +194,8 @@ bash examples/rloo_trainer/run_webshop.sh # WebShop
 ```
 
 
-# Citation
-If you find `RewardFlow` useful in your research or applications, please cite our paper::
+<!-- # Citation
+If you find `RewardFlow` useful in your research or applications, please cite our paper:: -->
 
 <!-- ```
 @article{feng2025group,
@@ -220,4 +220,4 @@ We welcome contributions to RewardFlow! Please feel free to:
 For questions, technical support, or collaboration inquiries:
 
 - **Email**: [xiaofeng@comp.hkbu.edu.hk](mailto:xiaofeng@comp.hkbu.edu.hk)
-- **Issues**: [GitHub Issues]()
+<!-- - **Issues**: [GitHub Issues]() -->
