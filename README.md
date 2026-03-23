@@ -1,12 +1,7 @@
 <h1 align="center">
-<b>RewardFlow: Topology-Aware Reward Propagation on State Graphs 
-for Agentic RL with Large Language Models</b>
+<a href="https://arxiv.org/abs/2603.18859"><b>RewardFlow: Topology-Aware Reward Propagation on State Graphs 
+for Agentic RL with Large Language Models</b></a>
 </h1>
-<!-- 
-<p align="center">
-  <a href="https://alphaapollo.org/"><img src="https://img.shields.io/badge/Project%20Website-AlphaApollo"></a>
-  <a href="https://arxiv.org/abs/2510.06261"><img src="https://img.shields.io/badge/arXiv-2510.06261-b31b1b"></a>
-</p> -->
 
 ![RewardFlow Framework](docs/rewardflow/rewardflow_overview.png)
 
